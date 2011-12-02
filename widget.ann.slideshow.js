@@ -72,50 +72,60 @@
 		// create page viewer
 		$(this).append('<div class="pages">');
 
-		// create the navigation area
-		$(this).append('<div class="sections">');
-
-		// create the list area within the navigation area
-		$(".sections").append('<div class="sectionList">');
+		if (stylecloset.section.length > 1) {
+			// create the navigation area
+			$(this).append('<div class="sections">');
+	
+			// create the list area within the navigation area
+			$(".sections").append('<div class="sectionList">');
+	
+			// create navigation objects
+			$(this).append('<div class="nav section left">');
+			$(this).append('<div class="nav section right">');
+	
+			// if there is navigation information, build what we can
+			if (config.navigation) {
+				// load the left section navigation arrow
+				$(this).find(".nav.section.left").loadImage({
+						"path"	: config.navigation.arrows.left.off,
+						"over"	: config.navigation.arrows.left.over
+					});
+		
+				// load the right section navigation arrow
+				$(this).find(".nav.section.right").loadImage({
+						"path"	: config.navigation.arrows.right.off,
+						"over"	: config.navigation.arrows.right.over
+					});
+			}
+		}
 
 		// create navigation objects
-		$(this).append('<div class="nav section left">');
-		$(this).append('<div class="nav section right">');
 		$(this).append('<div class="nav page left">');
 		$(this).append('<div class="nav page right">');
-
-		// load the left section navigation arrow
-		$(this).find(".nav.section.left").loadImage({
-				"path"	: config.navigation.arrows.left.off,
-				"over"	: config.navigation.arrows.left.over
-			});
-
-		// load the right section navigation arrow
-		$(this).find(".nav.section.right").loadImage({
-				"path"	: config.navigation.arrows.right.off,
-				"over"	: config.navigation.arrows.right.over
-			});
-
 
 		/*
 		 *	Create the editorial navigation region (since this will be smaller, this needs to be built before the pages)
 		 */
 		$.each(stylecloset.section, function(index,section) {
-				// create the section
-				$(".sections .sectionList").append('<div class="section">');
+				if (section.navigation) {
+					// create the section
+					$(".sections .sectionList").append('<div class="section">');
 
-				// load the section navigation image
-				$(".sections .sectionList .section:nth-child("+(index+1)+")").loadImage({
-					"path"	: section.navigation.image,
-					"alt"	: section.navigation.alt,
-					"title"	: section.navigation.title,
-					"over"	: section.navigation.over
-				});
-
-				// maybe this should be in the loadImage plugin???
-				$(".sections .sectionList .section:nth-child("+(index+1)+")").click(function(){
-					window.location = "#"+section.id;
-				});
+					setTimeout( function() { // stupid, stupid IE
+						// load the section navigation image
+						$(".sections .sectionList .section:nth-child("+(index+1)+")").loadImage({
+							"path"	: section.navigation.image,
+							"alt"	: section.navigation.alt,
+							"title"	: section.navigation.title,
+							"over"	: section.navigation.over
+						});
+		
+						// maybe this should be in the loadImage plugin???
+						$(".sections .sectionList .section:nth-child("+(index+1)+")").click(function(){
+							window.location = "#"+section.id;
+						});
+					},1);
+				}
 			});
 
 
@@ -123,34 +133,112 @@
 		 *	Create all the pages, but don't load the images — we only want to load the images that have or will be viewed (let's save some bandwidth for us and them)
 		 */
 		$.each(timeline, function(index,page){
+			var pid		= index;
+			var shift	= ($(".pages").width() * pid);
+
 			$(".pages").append("<div class='page "+page.parent+" "+page.pageId+"'></div>");
-
-			// add a link so that all accessibility features work
-			$(".pages").append('<a href="'+page.link+'" class="accessible '+page.parent+' '+page.pageId+'" tabindex="'+tabIndex+'">'+page.alt+'</a>');
-
+	
 			$(".pages .page."+page.parent+"."+page.pageId).css({
 				"position":"absolute",
 				"top":0,
-				"left":($(".pages").width() * index)
+				"left":shift
 			});
+	
+			setTimeout( function() { // stupid, stupid IE
+				// add a link so that all accessibility features work
+				$(".pages").append('<a href="'+page.link+'" class="accessible '+page.parent+' '+page.pageId+'" tabindex="'+tabIndex+'" style="font-size:1pt;">'+page.alt+'</a>');
+	
+				// Make this seem like a link onHover — show a pointer instead of an arrow
+				$(".pages .page."+page.parent+"."+page.pageId).hover().css({
+					"cursor":"pointer"
+				});
+	
+				// maybe this should be in the loadImage plugin???
+				$(".pages .page."+page.parent+"."+page.pageId).click(function(){
 
-			// Make this seem like a link onHover — show a pointer instead of an arrow
-			$(".pages .page."+page.parent+"."+page.pageId).hover().css({
-				"cursor":"pointer"
-			});
+					// REALLY STUPID IE BUG - FOR SOME REASON, ALL CLICKS ARE TRIGGERED REGARDLESS OF WHAT'S ON TOP!!!
+					if ($.browser.msie && Number($.browser.version.split(".")[0]) < 9 ) {
+						setTimeout( function() { // stupid, stupid IE
+							window.location = page.link;
+						},750);
+					} else {
+						window.location = page.link;
+					}
+				});
+	
+				// maybe this should be in the loadImage plugin???
+				$(".pages .accessible."+page.parent+"."+page.pageId).focus(function(){
+					window.location	= "#"+page.parent+":"+page.pageId;
+					return false;
+				});
+	
+				tabIndex++;
+			},1);
 
-			// maybe this should be in the loadImage plugin???
-			$(".pages ."+page.parent+"."+page.pageId).click(function(){
-				window.location = page.link;
-			});
+			// if there is an imagemap specified, we need to build it, right?
+			if (page.map) {
+				setTimeout( function() { // stupid, stupid IE
+					// build the image map
+					map = '<map name="'+page.parent+page.pageId+'">';
 
-			// maybe this should be in the loadImage plugin???
-			$(".pages .accessible."+page.parent+"."+page.pageId).focus(function(){
-				window.location	= "#"+page.parent+":"+page.pageId;
-				return false;
-			});
+					for(i=0;i<page.map.length;i++) {
+						var mapClass	= 'class="area '+page.parent+' page' +index+' map'+i+'"';
+						var mapShape	= 'shape="'+page.map[i].shape+'"';
+						var mapCoords	= 'coords="'+page.map[i].coords+'"';
+	
+						if (page.map[i].link) {
+							var mapHref = 'href="'+page.map[i].link+'"';
+						} else {
+							var mapHref = 'href="'+page.link+'"';
+						}
+						if (page.map[i].alt) var mapAlt = 'alt="'+page.map[i].alt+'"';
+	
+						map = map + '<area '+mapClass+' '+mapShape+' '+mapCoords+' '+mapHref+' '+mapAlt+' />';
 
-			tabIndex++;
+						// add any hover actions
+						if (page.map[i].hover) {
+							var hover	= page.map[i].hover;
+	
+							// don't like the "onclick" there, but I don't feel like dealing with more IE bugs right now
+							$(".pages").append('<img class="hover page'+index+' map'+i+'" src="'+hover.image+'" onclick="window.location=\''+page.link+'\';" />');
+							$(".pages .hover.page"+index+".map"+i).css({
+								"display"	:"none",
+								"position"	:"absolute",
+								"left"		: shift+Number(hover.left)+"px",
+								"top"		: hover.top+"px"
+							})
+						}
+	
+					}
+					map = map + '</map>';
+	
+					// add the map to the SlideShow DOM
+					$(map).appendTo(".pages");
+				},1);
+			}
+		});
+
+
+			$(".pages").width($(this).width()*timeline.length);
+
+		$(".area").live("click",function(){
+			areaClicked = true;			
+		});
+
+		$(".area").live("mouseover",function(){
+			var parent = $(this).attr("class").split(' ')[2];
+			var area = $(this).attr("class").split(' ')[3];
+			$(".pages .hover."+parent+"."+area).fadeIn("fast");
+		});
+
+		$(".area").live("mouseout",function(e){
+			var parent = $(this).attr("class").split(' ')[2];
+			var area = $(this).attr("class").split(' ')[3];
+
+			// make sure we're not over the actual hover image - can't have things all wonky, can we?
+			if (e.relatedTarget.className != "hover "+parent+" "+area) {
+				$(".pages .hover."+parent+"."+area).fadeOut("fast");
+			}
 		});
 
 		$(".pages").find("a").css({
@@ -261,12 +349,17 @@
 		 *	EVERYTHING NEEDS TO BE EVENT DRIVEN - RUN EVERYTHING THROUGH THIS
 		 */
 		$(window).hashchange(function(){
-			var hash	= location.hash.substr(1);
-			var section	= hash.split(":")[0];
-			var page	= hash.split(":")[1];
+			var hash		= location.hash.substr(1);
+			var section		= hash.split(":")[0];
+			var page		= hash.split(":")[1];
+			var position	= 0;
 
 			// set a default value for the section
-			if(section.length==0) section = "splash";
+			if(section.length==0) {
+				section = timeline[0].parent;
+				if (config.splash)
+					section = timeline[0].parent;
+			}
 
 			// set a default value for the page id
 			if(page==undefined) page = 1;
@@ -295,6 +388,10 @@
 				"path"		: timeline[position].image
 			});
 
+			// add the image map if one has been defined
+			if (timeline[position].map)
+				$(".pages").find(".page."+section+"."+page).find(".display").attr("usemap","#"+timeline[position].parent+timeline[position].pageId);
+
 			// make sure the next image is loaded
 			if ((position+1) < timeline.length) {
 				$(".page."+timeline[position+1].parent+"."+timeline[position+1].pageId).loadImage({
@@ -313,8 +410,12 @@
 			$(".pages").animate({"right":shift},500);
 
 
+			// set the inactive arrow opacity
+			var opacity = "0.25";	 // default opacity for an inactive arrow
+			if (timeline[position].arrows.left.inactiveOpacity) opacity = timeline[position].arrows.left.inactiveOpacity;
+
 			// set the left-bound arrow display
-			$(".page.nav.left").css({"opacity":".25"});
+			$(".page.nav.left").css({"opacity":opacity});
 			$(".page.nav.left").loadImage({
 					"path"	: timeline[position].arrows.left.off,
 					"over"	: timeline[position].arrows.left.over
@@ -323,7 +424,7 @@
 
 
 			// set the right-bound arrow display
-			$(".page.nav.right").css({"opacity":".25"});
+			$(".page.nav.right").css({"opacity":opacity});
 			$(".page.nav.right").loadImage({
 					"path"	: timeline[position].arrows.right.off,
 					"over"	: timeline[position].arrows.right.over
